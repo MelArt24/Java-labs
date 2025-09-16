@@ -245,9 +245,9 @@ public class Lab2 {
             return ValidationResult.error("Street cannot be empty.");
         }
 
-        Pattern housePattern = Pattern.compile("^\\d+(-\\d+)?$");
+        Pattern housePattern = Pattern.compile("^\\d+([-/]\\d+)?$");
         if (!housePattern.matcher(house).matches()) {
-            return ValidationResult.error("House must be a number or a number-number (e.g. 12 or 12-14).");
+            return ValidationResult.error("House must be a number or a number-number (e.g. 12 or 12-14 or 12/14).");
         }
 
         Pattern aptPattern = Pattern.compile("^\\d+$");
