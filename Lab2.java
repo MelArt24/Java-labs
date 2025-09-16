@@ -41,6 +41,8 @@ import java.util.regex.Pattern;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.Period;
+import java.util.function.Function;
 
 class StudentRecord {
     private final String lastName;
@@ -61,7 +63,7 @@ class StudentRecord {
     public String toString() {
         return "Last name: " + lastName +
                 ", Name: " + firstName +
-                ", Date pf birth: " + birthDate +
+                ", Date of birth: " + birthDate +
                 ", Phone number: " + phone +
                 ", Address: " + address;
     }
@@ -71,6 +73,34 @@ public class Lab2 {
     private static final Scanner scanner = new Scanner(System.in);
     private static final List<StudentRecord> records = new ArrayList<>();
 
+    private static final int NAME_MIN_LEN = 2;
+    private static final int NAME_MAX_LEN = 50;
+    private static final int ADDRESS_MAX_LEN = 200;
+    private static final int MAX_INPUT_LENGTH = 1000;
+    private static final int MIN_AGE = 14;
+    private static final int MAX_AGE = 120;
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("uuuu-MM-dd")
+            .withResolverStyle(java.time.format.ResolverStyle.STRICT);
+
+
+    static class ValidationResult {
+        final boolean valid;
+        final String errorMessage;
+
+        ValidationResult(boolean valid, String errorMessage) {
+            this.valid = valid;
+            this.errorMessage = errorMessage;
+        }
+
+        static ValidationResult ok() {
+            return new ValidationResult(true, "");
+        }
+
+        static ValidationResult error(String msg) {
+            return new ValidationResult(false, msg);
+        }
+    }
+
     public static void main(String[] args) {
         while (true) {
             System.out.println("\nMenu:");
@@ -78,7 +108,7 @@ public class Lab2 {
             System.out.println("2. Show all entries");
             System.out.println("3. Exit");
             System.out.print("Your option: ");
-            String choice = scanner.nextLine();
+            String choice = readLineWithLimit();
 
             switch (choice) {
                 case "1":
@@ -97,32 +127,137 @@ public class Lab2 {
     }
 
     private static void addRecord() {
-        String lastName = inputWithValidation("Enter student's last name: ", "[А-ЯҐЄІЇа-яґєіїA-Za-z\\-]+");
-        String firstName = inputWithValidation("Enter student's name: ", "[А-ЯҐЄІЇа-яґєіїA-Za-z\\-]+");
+        String lastName = inputWithValidation(
+                "Enter student's last name: ",
+                Lab2::validateName
+        );
+
+        String firstName = inputWithValidation(
+                "Enter student's name: ",
+                Lab2::validateName
+        );
+
         String birthDate = inputDate();
-        String phone = inputWithValidation("Enter phone number (for example: +380XXXXXXXXX): ", "\\+?\\d{10,13}");
-        System.out.print("Enter address (street, house, apartment): ");
-        String address = scanner.nextLine();
+
+        String phone = inputWithValidation(
+                "Enter phone number (format: +380XXXXXXXXX): ",
+                Lab2::validatePhone
+        );
+
+        String address = inputWithValidation(
+                "Enter address (City, Street, house, apartment): ",
+                Lab2::validateAddress
+        );
 
         StudentRecord record = new StudentRecord(lastName, firstName, birthDate, phone, address);
         records.add(record);
         System.out.println("Entry is added!");
     }
 
-    private static String inputWithValidation(String message, String regex) {
-        Pattern pattern = Pattern.compile(regex);
-        String input;
+    private static String readLineWithLimit() {
+        String line = scanner.nextLine();
+        if (line.length() > MAX_INPUT_LENGTH) {
+            System.out.println("Input too long. It will be truncated to " + MAX_INPUT_LENGTH + " chars.");
+            return line.substring(0, MAX_INPUT_LENGTH);
+        }
+        return line;
+    }
+
+    private static String inputWithValidation(String message, Function<String, ValidationResult> validator) {
         while (true) {
             System.out.print(message);
-            input = scanner.nextLine();
-            if (pattern.matcher(input).matches()) {
-                break;
+            String input = readLineWithLimit().trim();
+            ValidationResult result = validator.apply(input);
+            if (result.valid) {
+                return input;
             } else {
-                System.out.println("Invalid format, try again.");
+                System.out.println(result.errorMessage);
             }
         }
-        return input;
     }
+
+    private static ValidationResult validateName(String s) {
+        if (s == null || s.isEmpty()) return ValidationResult.error("Name cannot be empty.");
+        if (s.length() < NAME_MIN_LEN || s.length() > NAME_MAX_LEN)
+            return ValidationResult.error("Length must be between " + NAME_MIN_LEN + " and " + NAME_MAX_LEN + " characters.");
+
+        Pattern p = Pattern.compile("^[\\p{L}'\\- ]+$");
+        if (!p.matcher(s).matches())
+            return ValidationResult.error("Only letters, apostrophes, hyphens and spaces are allowed.");
+
+        if (!Character.isUpperCase(s.charAt(0)))
+            return ValidationResult.error("First letter must be uppercase.");
+
+        return ValidationResult.ok();
+    }
+
+    // +380XXXXXXXXX
+    private static ValidationResult validatePhone(String s) {
+        if (s == null || s.isEmpty())
+            return ValidationResult.error("Phone cannot be empty.");
+
+        Pattern p = Pattern.compile("^\\+380\\d{9}$");
+        if (!p.matcher(s).matches())
+            return ValidationResult.error("Invalid phone. Required format: +380 followed by 9 digits (e.g. +380631234567).");
+
+        return ValidationResult.ok();
+    }
+
+    private static ValidationResult validateAddress(String s) {
+        if (s == null || s.trim().isEmpty()) {
+            return ValidationResult.error("Address cannot be empty.");
+        }
+        if (s.length() > ADDRESS_MAX_LEN) {
+            return ValidationResult.error("Address too long. Max " + ADDRESS_MAX_LEN + " characters.");
+        }
+
+        // City, Street, house, apartment
+        String[] parts = s.split(",");
+        if (parts.length != 4) {
+            return ValidationResult.error("Address must be in format: City, Street, house, apartment");
+        }
+
+        String city = parts[0].trim();
+        String street = parts[1].trim();
+        String house = parts[2].trim();
+        String apartment = parts[3].trim();
+
+        Pattern namePattern = Pattern.compile("^[\\p{L}'\\-]+$");
+        if (!city.isEmpty()) {
+            if (!namePattern.matcher(city).matches()) {
+                return ValidationResult.error("City must contain only letters, apostrophes or hyphens.");
+            }
+            if (!Character.isUpperCase(city.charAt(0))) {
+                return ValidationResult.error("City must start with an uppercase letter.");
+            }
+        } else {
+            return ValidationResult.error("City cannot be empty.");
+        }
+
+        if (!street.isEmpty()) {
+            if (!namePattern.matcher(street).matches()) {
+                return ValidationResult.error("Street must contain only letters, apostrophes or hyphens.");
+            }
+            if (!Character.isUpperCase(street.charAt(0))) {
+                return ValidationResult.error("Street must start with an uppercase letter.");
+            }
+        } else {
+            return ValidationResult.error("Street cannot be empty.");
+        }
+
+        Pattern housePattern = Pattern.compile("^\\d+(-\\d+)?$");
+        if (!housePattern.matcher(house).matches()) {
+            return ValidationResult.error("House must be a number or a number-number (e.g. 12 or 12-14).");
+        }
+
+        Pattern aptPattern = Pattern.compile("^\\d+$");
+        if (!aptPattern.matcher(apartment).matches()) {
+            return ValidationResult.error("Apartment must be a number.");
+        }
+
+        return ValidationResult.ok();
+    }
+
 
     private static void showRecords() {
         if (records.isEmpty()) {
@@ -136,17 +271,38 @@ public class Lab2 {
     }
 
     private static String inputDate() {
-        String input;
         while (true) {
             System.out.print("Enter student's date of birth (format: YYYY-MM-DD): ");
-            input = scanner.nextLine();
+            String input = readLineWithLimit().trim();
             try {
-                LocalDate.parse(input, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                break;
+                LocalDate date = LocalDate.parse(input, DATE_FMT);
+                LocalDate today = LocalDate.now();
+
+                if (date.isAfter(today)) {
+                    System.out.println("Date must be in the past.");
+                    continue;
+                }
+
+                int age = Period.between(date, today).getYears();
+                if (age < MIN_AGE) {
+                    System.out.println("Student is too young. Minimum age is " + MIN_AGE + ".");
+                    continue;
+                }
+                if (age > MAX_AGE) {
+                    System.out.println("Unrealistic age (" + age + "). Maximum allowed is " + MAX_AGE + ".");
+                    continue;
+                }
+                LocalDate earliest = LocalDate.of(1900, 1, 1);
+                if (date.isBefore(earliest)) {
+                    System.out.println("Date is too old. Please enter a realistic birth date (>= 1900-01-01).");
+                    continue;
+                }
+                return date.format(DATE_FMT);
             } catch (DateTimeParseException e) {
-                System.out.println("Invalid date, try again.");
+                System.out.println("Invalid date format, try again (YYYY-MM-DD).");
+            } catch (Exception e) {
+                System.out.println("Error processing the date, try again.");
             }
         }
-        return input;
     }
 }
