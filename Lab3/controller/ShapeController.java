@@ -1,6 +1,6 @@
-package controller;
+package Lab3.controller;
 
-import model.Shape;
+import Lab3.model.Shape;
 import java.util.Arrays;
 import java.util.Comparator;
 

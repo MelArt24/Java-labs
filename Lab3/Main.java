@@ -15,9 +15,11 @@ MVC, який:
 Значення для ініціалізації об'єктів вибираються з заздалегідь підготовлених
 даних (обраних випадковим чином або по порядку проходження). */
 
-import model.*;
-import view.ShapeView;
-import controller.ShapeController;
+package Lab3;
+
+import Lab3.model.*;
+import Lab3.view.ShapeView;
+import Lab3.controller.ShapeController;
 import java.util.Random;
 
 public class Main {

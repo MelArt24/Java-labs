@@ -1,6 +1,6 @@
-package view;
+package Lab3.view;
 
-import model.Shape;
+import Lab3.model.Shape;
 
 public class ShapeView {
     public void displayShapes(Shape[] shapes) {

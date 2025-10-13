@@ -1,4 +1,4 @@
-package model;
+package Lab3.model;
 
 public abstract class Shape implements Drawable {
     public String shapeColor;
